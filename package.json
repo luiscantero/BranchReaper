@@ -1,0 +1,307 @@
+{
+  "name": "branch-reaper",
+  "displayName": "Branch Reaper",
+  "description": "Delete a git branch and all of its worktrees in one click, even locked, dirty or open ones. Bulk clean-up of merged and squash-merged branches.",
+  "version": "0.1.0",
+  "publisher": "luiscantero",
+  "license": "MIT",
+  "icon": "icon.png",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/luiscantero/BranchReaper"
+  },
+  "bugs": {
+    "url": "https://github.com/luiscantero/BranchReaper/issues"
+  },
+  "homepage": "https://github.com/luiscantero/BranchReaper#readme",
+  "engines": {
+    "vscode": "^1.100.0"
+  },
+  "categories": [
+    "SCM Providers",
+    "Other"
+  ],
+  "keywords": [
+    "git",
+    "branch",
+    "worktree",
+    "worktrees",
+    "delete branch",
+    "cleanup",
+    "prune",
+    "merged",
+    "squash",
+    "agent"
+  ],
+  "main": "./dist/extension.js",
+  "activationEvents": [
+    "onStartupFinished"
+  ],
+  "contributes": {
+    "commands": [
+      {
+        "command": "branchReaper.deleteBranch",
+        "title": "Delete Branch…",
+        "category": "Branch Reaper",
+        "icon": "$(trash)"
+      },
+      {
+        "command": "branchReaper.cleanUpMerged",
+        "title": "Clean Up Merged Branches",
+        "category": "Branch Reaper",
+        "icon": "$(sparkle)"
+      },
+      {
+        "command": "branchReaper.deleteChecked",
+        "title": "Delete Checked Branches",
+        "category": "Branch Reaper",
+        "icon": "$(trash)"
+      },
+      {
+        "command": "branchReaper.checkMerged",
+        "title": "Check All Merged Branches",
+        "category": "Branch Reaper",
+        "icon": "$(check-all)"
+      },
+      {
+        "command": "branchReaper.uncheckAll",
+        "title": "Uncheck All Branches",
+        "category": "Branch Reaper",
+        "icon": "$(clear-all)"
+      },
+      {
+        "command": "branchReaper.deleteBranchItem",
+        "title": "Delete Branch (incl. Worktrees)",
+        "category": "Branch Reaper",
+        "icon": "$(trash)"
+      },
+      {
+        "command": "branchReaper.deleteRepositoryBranch",
+        "title": "Delete Branch (incl. Worktrees)",
+        "category": "Branch Reaper"
+      },
+      {
+        "command": "branchReaper.refresh",
+        "title": "Refresh",
+        "category": "Branch Reaper",
+        "icon": "$(refresh)"
+      },
+      {
+        "command": "branchReaper.revealWorktree",
+        "title": "Open Worktree in New Window",
+        "category": "Branch Reaper",
+        "icon": "$(empty-window)"
+      },
+      {
+        "command": "branchReaper.showLog",
+        "title": "Show Log",
+        "category": "Branch Reaper"
+      }
+    ],
+    "keybindings": [
+      {
+        "command": "branchReaper.deleteBranch",
+        "key": "ctrl+alt+shift+d",
+        "mac": "cmd+alt+shift+d"
+      }
+    ],
+    "views": {
+      "scm": [
+        {
+          "id": "branchReaper.branches",
+          "name": "Branches & Worktrees",
+          "icon": "$(git-branch)",
+          "contextualTitle": "Branch Reaper"
+        }
+      ]
+    },
+    "viewsWelcome": [
+      {
+        "view": "branchReaper.branches",
+        "contents": "No git repository found in this window."
+      }
+    ],
+    "menus": {
+      "commandPalette": [
+        {
+          "command": "branchReaper.deleteBranchItem",
+          "when": "false"
+        },
+        {
+          "command": "branchReaper.deleteRepositoryBranch",
+          "when": "false"
+        },
+        {
+          "command": "branchReaper.revealWorktree",
+          "when": "false"
+        }
+      ],
+      "view/title": [
+        {
+          "command": "branchReaper.deleteChecked",
+          "when": "view == branchReaper.branches && branchReaper.checkedCount > 0",
+          "group": "navigation@0"
+        },
+        {
+          "command": "branchReaper.uncheckAll",
+          "when": "view == branchReaper.branches && branchReaper.checkedCount > 0",
+          "group": "navigation@1"
+        },
+        {
+          "command": "branchReaper.checkMerged",
+          "when": "view == branchReaper.branches && branchReaper.checkedCount == 0",
+          "group": "navigation@1"
+        },
+        {
+          "command": "branchReaper.cleanUpMerged",
+          "when": "view == branchReaper.branches",
+          "group": "navigation@2"
+        },
+        {
+          "command": "branchReaper.refresh",
+          "when": "view == branchReaper.branches",
+          "group": "navigation@3"
+        },
+        {
+          "command": "branchReaper.deleteBranch",
+          "when": "view == branchReaper.branches",
+          "group": "1_delete@1"
+        },
+        {
+          "command": "branchReaper.showLog",
+          "when": "view == branchReaper.branches",
+          "group": "2_log"
+        }
+      ],
+      "view/item/context": [
+        {
+          "command": "branchReaper.deleteBranchItem",
+          "when": "view == branchReaper.branches && viewItem =~ /^branch\\.deletable/",
+          "group": "inline@2"
+        },
+        {
+          "command": "branchReaper.deleteBranchItem",
+          "when": "view == branchReaper.branches && viewItem =~ /^branch\\.deletable/",
+          "group": "1_delete@1"
+        },
+        {
+          "command": "branchReaper.revealWorktree",
+          "when": "view == branchReaper.branches && viewItem == worktree",
+          "group": "inline@1"
+        },
+        {
+          "command": "branchReaper.revealWorktree",
+          "when": "view == branchReaper.branches && viewItem == worktree",
+          "group": "1_open@1"
+        },
+        {
+          "command": "branchReaper.refresh",
+          "when": "view == branchReaper.branches && viewItem == repository",
+          "group": "inline@1"
+        }
+      ],
+      "scm/sourceControl": [
+        {
+          "command": "branchReaper.deleteRepositoryBranch",
+          "when": "scmProvider == git",
+          "group": "9_branchReaper@1"
+        }
+      ],
+      "scm/title": [
+        {
+          "command": "branchReaper.deleteBranch",
+          "when": "scmProvider == git",
+          "group": "9_branchReaper@1"
+        },
+        {
+          "command": "branchReaper.cleanUpMerged",
+          "when": "scmProvider == git",
+          "group": "9_branchReaper@2"
+        }
+      ]
+    },
+    "configuration": {
+      "title": "Branch Reaper",
+      "properties": {
+        "branchReaper.protectedBranches": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "default": [
+            "main",
+            "master",
+            "release*",
+            "releases/*"
+          ],
+          "markdownDescription": "Branches that are never deleted. Glob patterns, case-insensitive: `*` matches within a path segment, `**` across segments, `?` one character. The remote's default branch is always protected."
+        },
+        "branchReaper.deleteRemote": {
+          "type": "string",
+          "enum": [
+            "never",
+            "ask",
+            "always"
+          ],
+          "enumDescriptions": [
+            "Only delete local branches and worktrees.",
+            "The confirmation offers a separate button that also deletes the remote branch.",
+            "Also delete the remote branch (`git push <remote> --delete`)."
+          ],
+          "default": "ask",
+          "markdownDescription": "Whether to delete the remote branch too. Branches whose upstream is already gone are never pushed."
+        },
+        "branchReaper.confirm": {
+          "type": "boolean",
+          "default": true,
+          "markdownDescription": "Show a confirmation listing everything that will be removed. When off, `deleteRemote: ask` behaves like `never`."
+        },
+        "branchReaper.worktreeDeleteRetryMs": {
+          "type": "integer",
+          "default": 5000,
+          "minimum": 0,
+          "maximum": 120000,
+          "markdownDescription": "How long to keep retrying to delete a worktree folder that is still in use (for example by a process on Windows), in milliseconds."
+        },
+        "branchReaper.cleanUp.detectSquashMerged": {
+          "type": "boolean",
+          "default": true,
+          "markdownDescription": "Also treat a branch as merged when its changes are already in the default branch (empty tree diff, or a merge that would not change the default branch). Catches squash merges whose upstream branch was kept."
+        },
+        "branchReaper.cleanUp.fetch": {
+          "type": "boolean",
+          "default": true,
+          "markdownDescription": "Run `git fetch --prune` before looking for merged branches."
+        },
+        "branchReaper.closeTerminals": {
+          "type": "boolean",
+          "default": true,
+          "markdownDescription": "Close VS Code terminals (in any window) whose working directory is inside a worktree that is being removed, since their shells keep the folder in use."
+        }
+      }
+    }
+  },
+  "scripts": {
+    "vscode:prepublish": "npm run package-bundle",
+    "compile": "npm run check-types && node esbuild.mjs",
+    "watch": "node esbuild.mjs --watch",
+    "package-bundle": "npm run check-types && node esbuild.mjs --production",
+    "check-types": "tsc -p . --noEmit",
+    "compile-tests": "tsc -p . --outDir out",
+    "pretest": "npm run compile && npm run compile-tests",
+    "test": "npm run test:unit && npm run test:integration",
+    "test:unit": "mocha --ui tdd \"out/test/unit/**/*.test.js\"",
+    "test:integration": "node ./out/test/runTest.js",
+    "package": "vsce package"
+  },
+  "devDependencies": {
+    "@types/mocha": "^10.0.10",
+    "@types/node": "^20.0.0",
+    "@types/vscode": "~1.100.0",
+    "@vscode/test-electron": "^2.5.2",
+    "@vscode/vsce": "^3.6.0",
+    "esbuild": "^0.25.0",
+    "mocha": "^11.0.0",
+    "typescript": "^5.6.0"
+  }
+}
