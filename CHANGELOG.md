@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.2.0
+
+- Branches merged into other target branches, such as `preview` or `release/1.5`, count as merged (new setting `branchReaper.targetBranches`); the status names the target.
+
 ## 0.1.0
 
 - Delete a branch with all of its worktrees (locked, dirty, open in other VS Code windows) after one confirmation.

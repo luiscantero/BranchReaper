@@ -161,7 +161,7 @@ Requirements: Node.js 20+ and git.
 npm install
 npm test          # unit tests, then integration tests in a downloaded VS Code
 npm run package   # writes branch-reaper-<version>.vsix
-code --install-extension branch-reaper-0.1.0.vsix
+code --install-extension branch-reaper-0.2.0.vsix
 ```
 
 The VSIX contains only JavaScript, so the same file works on Windows, macOS and Linux, and one
