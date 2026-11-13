@@ -4,6 +4,7 @@ import { BRANCH_FORMAT, BranchRef, MergeStatus, isContentMerged, mergeStatus, pa
 import { Git } from "./git";
 import { nativePath, pathKey } from "./paths";
 import { Worktree, parseWorktreeList } from "./porcelain";
+import { protectedBy } from "./protect";
 
 export interface RepoInfo {
   /** Normalized `--git-common-dir`; identifies the repository across its worktrees. */
@@ -28,6 +29,8 @@ export interface RepoSnapshot {
   worktrees: Worktree[];
   branches: BranchRef[];
   statuses: Map<string, MergeStatus>;
+  /** Target branch other than the default branch that a merged branch was merged into. */
+  mergedInto: Map<string, string>;
   base?: BaseBranch;
   remotes: string[];
   defaultRemote?: string;
@@ -96,56 +99,83 @@ async function refExists(git: Git, cwd: string, ref: string): Promise<boolean> {
   return (await git.run(cwd, ["show-ref", "--verify", "--quiet", ref], { quiet: true })).code === 0;
 }
 
-/** Cache of squash-merge checks, keyed by base and branch commit. */
+/** Cache of squash-merge checks, keyed by target and branch commit. */
 const contentMergedCache = new Map<string, boolean>();
+let mergeTreeSupported = true;
 
-async function contentMergedBranches(
-  git: Git,
-  cwd: string,
-  base: BaseBranch,
-  candidates: readonly BranchRef[],
-): Promise<Set<string>> {
-  const result = new Set<string>();
-  if (candidates.length === 0) {
-    return result;
+/** Whether the branch's changes are already in the target (squash or cherry-pick merges). */
+async function isContentMergedInto(git: Git, cwd: string, target: TargetBranch, branch: BranchRef): Promise<boolean> {
+  const key = `${target.sha}:${branch.sha}`;
+  const cached = contentMergedCache.get(key);
+  if (cached !== undefined) {
+    return cached;
   }
-  const baseSha = (await git.exec(cwd, ["rev-parse", base.ref], { quiet: true })).trim();
-  const baseTree = (await git.exec(cwd, ["rev-parse", `${base.ref}^{tree}`], { quiet: true })).trim();
-  let mergeTreeSupported = true;
-  const check = async (branch: BranchRef) => {
-    const key = `${baseSha}:${branch.sha}`;
-    let merged = contentMergedCache.get(key);
-    if (merged === undefined) {
-      merged = false;
-      if (mergeTreeSupported) {
-        const r = await git.run(cwd, ["merge-tree", "--write-tree", "--no-messages", base.ref, branch.sha], { quiet: true });
-        if (r.code === 0 || r.code === 1) {
-          merged = isContentMerged(r.code, r.stdout, baseTree);
-        } else {
-          // Git before 2.38: fall back to an empty tree diff.
-          mergeTreeSupported = false;
-        }
-      }
-      if (!mergeTreeSupported) {
-        merged = (await git.run(cwd, ["diff", "--quiet", base.ref, branch.sha], { quiet: true })).code === 0;
-      }
-      contentMergedCache.set(key, merged);
+  let merged = false;
+  if (mergeTreeSupported) {
+    const r = await git.run(cwd, ["merge-tree", "--write-tree", "--no-messages", target.sha, branch.sha], { quiet: true });
+    if (r.code === 0 || r.code === 1) {
+      merged = isContentMerged(r.code, r.stdout, target.tree);
+    } else {
+      // Git before 2.38: fall back to an empty tree diff.
+      mergeTreeSupported = false;
     }
-    if (merged) {
-      result.add(branch.name);
-    }
-  };
-  const queue = [...candidates];
-  const workers = Array.from({ length: Math.min(8, queue.length) }, async () => {
-    for (let next = queue.shift(); next; next = queue.shift()) {
-      await check(next);
-    }
-  });
-  await Promise.all(workers);
-  return result;
+  }
+  if (!mergeTreeSupported) {
+    merged = (await git.run(cwd, ["diff", "--quiet", target.sha, branch.sha], { quiet: true })).code === 0;
+  }
+  contentMergedCache.set(key, merged);
+  return merged;
 }
 
-export async function loadSnapshot(git: Git, repo: RepoInfo, options: { detectSquashMerged: boolean }): Promise<RepoSnapshot> {
+/** Runs `fn` for every item, at most `limit` at a time. */
+async function forEachLimited<T>(items: readonly T[], limit: number, fn: (item: T) => Promise<void>) {
+  const queue = [...items];
+  await Promise.all(
+    Array.from({ length: Math.min(limit, queue.length) }, async () => {
+      for (let next = queue.shift(); next !== undefined; next = queue.shift()) {
+        await fn(next);
+      }
+    }),
+  );
+}
+
+/** A branch that pull requests merge into: the default branch, or one matching `targetBranches`. */
+export interface TargetBranch {
+  ref: string;
+  /** Short name without the remote, for example `release/1.5`. */
+  name: string;
+  sha: string;
+  tree: string;
+  committerDate: number;
+}
+
+export interface LoadOptions {
+  detectSquashMerged: boolean;
+  /** Patterns of other branches that pull requests merge into, for example `release/**`. */
+  targetBranches: readonly string[];
+}
+
+const TARGET_FORMAT = ["%(refname)", "%(objectname)", "%(tree)", "%(committerdate:unix)"].join("%00");
+
+async function findTargets(git: Git, cwd: string, base: BaseBranch, patterns: readonly string[]): Promise<TargetBranch[]> {
+  const prefix = base.remote ? `refs/remotes/${base.remote}/` : "refs/heads/";
+  const output = await git.exec(cwd, ["for-each-ref", `--format=${TARGET_FORMAT}`, base.remote ? prefix : base.ref], { quiet: true });
+  const targets: TargetBranch[] = [];
+  for (const line of output.split(/\r?\n/)) {
+    const [ref, sha, tree, date] = line.split("\0");
+    if (!ref || !tree || ref.endsWith("/HEAD")) {
+      continue;
+    }
+    const name = ref.slice(prefix.length);
+    if (ref === base.ref || protectedBy(name, patterns) !== undefined) {
+      targets.push({ ref, name, sha, tree, committerDate: Number(date) || 0 });
+    }
+  }
+  // The default branch first: it is the usual target and is reported without its name.
+  return targets.sort((a, b) => Number(b.ref === base.ref) - Number(a.ref === base.ref));
+}
+
+export async function loadSnapshot(git: Git, repo: RepoInfo, options: LoadOptions): Promise<RepoSnapshot> {
   const cwd = repo.mainPath;
   const [worktrees, branchOutput, remoteOutput, remoteBranchOutput] = await Promise.all([
     listWorktrees(git, cwd),
@@ -163,15 +193,49 @@ export async function loadSnapshot(git: Git, repo: RepoInfo, options: { detectSq
       .map((r) => r.slice("refs/remotes/".length)),
   );
   const { base, defaultRemote } = await findBase(git, cwd, remotes);
-  let merged = new Set<string>();
-  let contentMerged = new Set<string>();
+  const merged = new Set<string>();
+  const contentMerged = new Set<string>();
+  const mergedInto = new Map<string, string>();
   if (base) {
-    merged = parseMergedBranches(await git.exec(cwd, ["branch", "--merged", base.ref, "--format=%(refname)"], { quiet: true }));
+    const targets = await findTargets(git, cwd, base, options.targetBranches);
+    // A branch is never compared with its own upstream or a target of the same name (except the
+    // default branch, as before: the local main is merged when origin/main contains it).
+    const comparable = (branch: BranchRef, target: TargetBranch) =>
+      target.ref === base.ref || (target.ref !== branch.upstream && target.name.toLowerCase() !== branch.name.toLowerCase());
+    const record = (branch: BranchRef, target: TargetBranch) => {
+      if (target.ref !== base.ref && !mergedInto.has(branch.name)) {
+        mergedInto.set(branch.name, target.name);
+      }
+    };
+    const ancestors = new Map<string, Set<string>>();
+    await forEachLimited(targets, 8, async (target) => {
+      ancestors.set(target.ref, parseMergedBranches(await git.exec(cwd, ["for-each-ref", "--format=%(refname)", "--merged", target.sha, "refs/heads"], { quiet: true })));
+    });
+    for (const branch of branches) {
+      const target = targets.find((t) => comparable(branch, t) && ancestors.get(t.ref)?.has(branch.name));
+      if (target) {
+        merged.add(branch.name);
+        record(branch, target);
+      }
+    }
     if (options.detectSquashMerged) {
-      const candidates = branches.filter((b) => !merged.has(b.name) && b.name !== base.name);
-      contentMerged = await contentMergedBranches(git, cwd, base, candidates);
+      await forEachLimited(
+        branches.filter((b) => !merged.has(b.name)),
+        8,
+        async (branch) => {
+          // Other targets can only contain the changes if they moved after the branch's last commit.
+          const candidates = targets.filter((t) => comparable(branch, t) && (t.ref === base.ref || t.committerDate >= branch.committerDate));
+          for (const target of candidates) {
+            if (await isContentMergedInto(git, cwd, target, branch)) {
+              contentMerged.add(branch.name);
+              record(branch, target);
+              return;
+            }
+          }
+        },
+      );
     }
   }
   const statuses = new Map(branches.map((b) => [b.name, mergeStatus(b, merged, contentMerged)] as const));
-  return { repo, worktrees, branches, statuses, base, remotes, defaultRemote, remoteBranches };
+  return { repo, worktrees, branches, statuses, mergedInto, base, remotes, defaultRemote, remoteBranches };
 }

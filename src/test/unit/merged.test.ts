@@ -116,21 +116,52 @@ suite("merged detection", () => {
       git(repo, "checkout", "-q", "-b", "unmerged");
       commit(repo, "README.md", "changed\n", "unmerged work");
       git(repo, "checkout", "-q", "main");
+      // into-preview: squash-merged into origin/preview (not main), upstream kept.
+      git(repo, "checkout", "-q", "-b", "preview");
+      commit(repo, "preview.txt", "p\n", "preview only");
+      git(repo, "push", "-q", "-u", "origin", "preview");
+      git(repo, "checkout", "-q", "-b", "into-preview");
+      commit(repo, "feature.txt", "f\n", "preview feature");
+      git(repo, "push", "-q", "-u", "origin", "into-preview");
+      git(repo, "checkout", "-q", "preview");
+      git(repo, "merge", "-q", "--squash", "into-preview");
+      git(repo, "commit", "-q", "-m", "Preview feature (#2)");
+      git(repo, "push", "-q", "origin", "preview");
+      git(repo, "reset", "-q", "--hard", "HEAD~1");
+      // into-release: merged into origin/release/1.0 with a merge commit.
+      git(repo, "checkout", "-q", "main");
+      git(repo, "checkout", "-q", "-b", "into-release");
+      commit(repo, "fix.txt", "x\n", "release fix");
+      git(repo, "push", "-q", "origin", "main:release/1.0");
+      git(repo, "fetch", "-q");
+      git(repo, "checkout", "-q", "--detach", "origin/release/1.0");
+      git(repo, "merge", "-q", "--no-ff", "-m", "Merge fix", "into-release");
+      git(repo, "push", "-q", "origin", "HEAD:release/1.0");
+      git(repo, "checkout", "-q", "main");
 
       const gitRunner = new Git("git", quiet);
       const info = await resolveRepo(gitRunner, repo);
       assert.ok(info);
-      const withSquash = await loadSnapshot(gitRunner, info, { detectSquashMerged: true });
+      const targetBranches = ["main", "preview", "release/**"];
+      const withSquash = await loadSnapshot(gitRunner, info, { detectSquashMerged: true, targetBranches });
       assert.strictEqual(withSquash.base?.ref, "refs/remotes/origin/main");
       assert.deepStrictEqual(Object.fromEntries(withSquash.statuses), {
         gone: "gone",
+        "into-preview": "squashMerged",
+        "into-release": "merged",
         main: "merged",
         merged: "merged",
+        // The local preview branch lags behind origin/preview; it is not "merged" into itself.
+        preview: "unmerged",
         squashed: "squashMerged",
         unmerged: "unmerged",
       });
-      const withoutSquash = await loadSnapshot(gitRunner, info, { detectSquashMerged: false });
+      assert.deepStrictEqual(Object.fromEntries(withSquash.mergedInto), { "into-preview": "preview", "into-release": "release/1.0" });
+      const withoutSquash = await loadSnapshot(gitRunner, info, { detectSquashMerged: false, targetBranches });
       assert.strictEqual(withoutSquash.statuses.get("squashed"), "unmerged");
+      assert.strictEqual(withoutSquash.statuses.get("into-preview"), "unmerged");
+      const mainOnly = await loadSnapshot(gitRunner, info, { detectSquashMerged: true, targetBranches: [] });
+      assert.strictEqual(mainOnly.statuses.get("into-release"), "unmerged");
     } finally {
       fs.rmSync(root, { recursive: true, force: true });
     }

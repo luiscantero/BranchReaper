@@ -7,12 +7,15 @@ import { getGitApi } from "./windows";
 
 export type DeleteRemote = "never" | "ask" | "always";
 
+const DEFAULT_TARGET_BRANCHES = ["main", "master", "develop", "dev", "preview", "release*", "release/**", "releases/**", "hotfix/**"];
+
 export interface Settings {
   protectedBranches: string[];
   deleteRemote: DeleteRemote;
   confirm: boolean;
   retryMs: number;
   detectSquashMerged: boolean;
+  targetBranches: string[];
   fetch: boolean;
   closeTerminals: boolean;
 }
@@ -25,6 +28,7 @@ export function settings(): Settings {
     confirm: config.get<boolean>("confirm", true),
     retryMs: Math.max(0, config.get<number>("worktreeDeleteRetryMs", 5000)),
     detectSquashMerged: config.get<boolean>("cleanUp.detectSquashMerged", true),
+    targetBranches: config.get<string[]>("targetBranches", DEFAULT_TARGET_BRANCHES),
     fetch: config.get<boolean>("cleanUp.fetch", true),
     closeTerminals: config.get<boolean>("closeTerminals", true),
   };
@@ -76,7 +80,7 @@ export class Model {
   }
 
   async snapshot(repo: RepoInfo): Promise<RepoSnapshot> {
-    return loadSnapshot(await this.git(), repo, { detectSquashMerged: settings().detectSquashMerged });
+    return loadSnapshot(await this.git(), repo, { detectSquashMerged: settings().detectSquashMerged, targetBranches: settings().targetBranches });
   }
 
   /** Snapshots of the last full load of all repositories, shown while a fresh load runs. */
@@ -120,6 +124,7 @@ export class Model {
       result: planDeletion({
         branch,
         status: snapshot.statuses.get(branch.name) ?? "unmerged",
+        mergedInto: snapshot.mergedInto.get(branch.name),
         worktrees: snapshot.worktrees,
         protectedPatterns: config.protectedBranches,
         defaultBranch: snapshot.base?.name,

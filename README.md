@@ -36,11 +36,13 @@ or terminal that still used it, and only then deleting the branch.
 
 - **Clean Up Merged Branches** (*Branch Reaper: Clean Up Merged Branches*): runs
   `git fetch --prune`, then offers every branch that is
-  1. merged into the default branch (`git branch --merged origin/<default>`),
+  1. merged into the default branch (`git branch --merged origin/<default>`) or into another
+     target branch (see `branchReaper.targetBranches`, for example `preview` or `release/1.5`),
   2. or whose upstream is `[gone]` (deleted after a pull request merged, which catches squash
      merges such as Azure DevOps' default),
-  3. or, optionally, whose changes are already in the default branch (empty tree diff, or a merge
-     that would not change the default branch).
+  3. or, optionally, whose changes are already in one of those branches (empty tree diff, or a
+     merge that would not change it). The status then says where, for example *merged (squash)
+     into release/1.5*.
 
   All branches are checked (oldest first), except those with a worktree that has uncommitted
   changes (it may belong to an agent session that is still running) and those whose upstream is
@@ -114,10 +116,11 @@ extension, so branch names are never interpreted by a shell.
 | Setting | Default | Description |
 | --- | --- | --- |
 | `branchReaper.protectedBranches` | `["main", "master", "release*", "releases/*"]` | Branches that are never deleted. Case-insensitive globs: `*` matches within a path segment, `**` across segments, `?` one character. |
+| `branchReaper.targetBranches` | `["main", "master", "develop", "dev", "preview", "release*", "release/**", "releases/**", "hotfix/**"]` | Remote branches that pull requests merge into, besides the default branch. A branch merged into any of them counts as merged. Same glob syntax as `protectedBranches`. |
 | `branchReaper.deleteRemote` | `ask` | `never`, `ask` (the confirmation has a *Delete incl. Remote* button) or `always`. Branches whose upstream is gone are not pushed. |
 | `branchReaper.confirm` | `true` | Show the confirmation. When off, `ask` behaves like `never`. |
 | `branchReaper.worktreeDeleteRetryMs` | `5000` | How long to retry deleting a worktree folder that is in use, in milliseconds. |
-| `branchReaper.cleanUp.detectSquashMerged` | `true` | Also offer branches whose changes are already in the default branch. |
+| `branchReaper.cleanUp.detectSquashMerged` | `true` | Also offer branches whose changes are already in the default branch or another target branch. |
 | `branchReaper.cleanUp.fetch` | `true` | Run `git fetch --prune` before cleaning up. |
 | `branchReaper.closeTerminals` | `true` | Close terminals (in any window) whose working directory is inside a worktree being removed. |
 

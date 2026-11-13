@@ -332,7 +332,7 @@ function branchItem(entry: BranchEntry, multiRepo: boolean): vscode.QuickPickIte
   const locked = worktrees.some((w) => w.locked);
   const icon = "refused" in entry.result ? "$(shield)" : locked ? "$(lock)" : "$(git-branch)";
   const description = [
-    describeStatus(status),
+    describeStatus(status, entry.snapshot.mergedInto.get(entry.branch.name)),
     relativeAge(entry.branch.committerDate),
     "refused" in entry.result ? entry.result.refused : undefined,
     multiRepo ? entry.snapshot.repo.name : undefined,
@@ -363,7 +363,7 @@ async function confirm(
     const { plan } = job;
     const flags = (w: DeletionPlan["worktrees"][number]) =>
       [w.locked ? "locked" : undefined, dirty.has(w.path) ? "uncommitted changes" : undefined, w.prunable ? "folder missing" : undefined].filter(Boolean).join(", ");
-    const block = [`Branch ${plan.branch.name} (${describeStatus(plan.status)}${multiRepo ? `, ${job.repo.name}` : ""})`];
+    const block = [`Branch ${plan.branch.name} (${describeStatus(plan.status, plan.mergedInto)}${multiRepo ? `, ${job.repo.name}` : ""})`];
     for (const worktree of plan.worktrees) {
       const f = flags(worktree);
       block.push(`    Worktree ${shortPath(worktree.path)}${f ? ` (${f})` : ""}`);

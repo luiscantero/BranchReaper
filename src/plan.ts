@@ -11,6 +11,7 @@ export interface WindowFolder {
 export interface PlanInput {
   branch: BranchRef;
   status: MergeStatus;
+  mergedInto?: string;
   worktrees: readonly Worktree[];
   protectedPatterns: readonly string[];
   /** Short name of the remote's default branch (always protected). */
@@ -25,6 +26,8 @@ export interface PlanInput {
 export interface DeletionPlan {
   branch: BranchRef;
   status: MergeStatus;
+  /** Target other than the default branch that it was merged into. */
+  mergedInto?: string;
   /** Linked worktrees that have the branch checked out (native paths). */
   worktrees: Worktree[];
   /** Workspace folders of this window inside those worktrees, removed from the window first. */
@@ -70,7 +73,7 @@ export function planDeletion(input: PlanInput): PlanResult {
   } else if (!branch.upstream && input.defaultRemote && input.remoteBranches.has(`${input.defaultRemote}/${branch.name}`)) {
     remote = { remote: input.defaultRemote, ref: `refs/heads/${branch.name}` };
   }
-  return { plan: { branch, status: input.status, worktrees, windowFoldersToRemove, remote } };
+  return { plan: { branch, status: input.status, mergedInto: input.mergedInto, worktrees, windowFoldersToRemove, remote } };
 }
 
 /** Display name of a remote branch, for example `origin/feature/x`. */

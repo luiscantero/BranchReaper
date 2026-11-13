@@ -236,6 +236,24 @@
           ],
           "markdownDescription": "Branches that are never deleted. Glob patterns, case-insensitive: `*` matches within a path segment, `**` across segments, `?` one character. The remote's default branch is always protected."
         },
+        "branchReaper.targetBranches": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "default": [
+            "main",
+            "master",
+            "develop",
+            "dev",
+            "preview",
+            "release*",
+            "release/**",
+            "releases/**",
+            "hotfix/**"
+          ],
+          "markdownDescription": "Remote branches that pull requests merge into, besides the remote's default branch. A branch counts as merged when it was merged into any of them, for example a PR into `preview` or `release/1.5`. Glob patterns, case-insensitive, matched against the branch name without the remote."
+        },
         "branchReaper.deleteRemote": {
           "type": "string",
           "enum": [

@@ -101,14 +101,16 @@ export function compareByAge(a: Pick<BranchRef, "name" | "committerDate">, b: Pi
   return a.committerDate - b.committerDate || a.name.localeCompare(b.name);
 }
 
-export function describeStatus(status: MergeStatus): string {
+/** `into` names a target other than the default branch, for example `merged into preview`. */
+export function describeStatus(status: MergeStatus, into?: string): string {
+  const suffix = into ? ` into ${into}` : "";
   switch (status) {
     case "merged":
-      return "merged";
+      return `merged${suffix}`;
     case "gone":
       return "upstream gone";
     case "squashMerged":
-      return "merged (squash)";
+      return `merged (squash)${suffix}`;
     case "unmerged":
       return "unmerged";
   }

@@ -134,7 +134,8 @@ export class BranchTree implements vscode.TreeDataProvider<Node> {
         );
         item.id = `${entry.snapshot.repo.key}:branch:${entry.branch.name}`;
         const locked = worktrees.some((w) => w.locked);
-        const parts = [describeStatus(status), relativeAge(entry.branch.committerDate)];
+        const into = entry.snapshot.mergedInto.get(entry.branch.name);
+        const parts = [describeStatus(status, into), relativeAge(entry.branch.committerDate)];
         if ("refused" in entry.result) {
           parts.push(entry.result.refused);
         }
@@ -149,7 +150,7 @@ export class BranchTree implements vscode.TreeDataProvider<Node> {
         item.description = parts.join(" · ");
         item.iconPath = new vscode.ThemeIcon("refused" in entry.result ? "shield" : locked ? "lock" : "git-branch");
         const tooltip = new vscode.MarkdownString(undefined, true);
-        tooltip.appendMarkdown(`**${escape(entry.branch.name)}** · ${describeStatus(status)}\n\n`);
+        tooltip.appendMarkdown(`**${escape(entry.branch.name)}** · ${describeStatus(status, into)}\n\n`);
         tooltip.appendMarkdown(`${escape(entry.branch.subject)}\n\n`);
         if (entry.branch.upstream) {
           tooltip.appendMarkdown(`Upstream: ${escape(entry.branch.upstream.replace(/^refs\/remotes\//, ""))}${entry.branch.upstreamGone ? " (gone)" : ""}\n\n`);
