@@ -52,8 +52,9 @@ the branch.
   upstream gone* and *Protected or in use*, oldest last commit first, with merge status, last
   commit age, worktrees and lock state. Branches whose upstream is gone are under *Unmerged* on
   purpose: their changes were not found in the default branch, so check them before deleting.
-  - **Check** the branches to delete (checking a group checks all of its branches, the toolbar's
-    *Check All Merged Branches* checks every merged one), then click **Delete Checked Branches**
+  - **Check** the branches to delete (checking the *Merged* group checks all of its branches, as
+    does the toolbar's *Check All Merged Branches*; *Unmerged or upstream gone* branches can only
+    be checked one by one), then click **Delete Checked Branches**
     in the toolbar: one confirmation for all of them. The view's title shows how many are checked.
   - Inline buttons delete a single branch or open a worktree in a new window; the toolbar also
     has *Clean Up Merged Branches* and *Refresh*.

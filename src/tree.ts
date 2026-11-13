@@ -116,7 +116,8 @@ export class BranchTree implements vscode.TreeDataProvider<Node> {
         );
         item.description = String(node.entries.length);
         item.id = `${node.snapshot.repo.key}:${node.group}`;
-        if (node.group !== "refused") {
+        // Only the merged group can be checked as a whole; unmerged branches are checked one by one.
+        if (node.group === "merged") {
           item.checkboxState = node.entries.every((e) => this.checked.has(entryKey(e)))
             ? vscode.TreeItemCheckboxState.Checked
             : vscode.TreeItemCheckboxState.Unchecked;
