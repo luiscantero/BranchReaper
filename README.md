@@ -4,8 +4,7 @@
 have uncommitted changes, or are open in another VS Code window. Also cleans up merged and
 squash-merged branches in bulk.
 
-Built for running several AI agent sessions in parallel, each in its own worktree under
-`<repo>.worktrees/`. Once their pull requests merge, cleaning up used to mean finding every
+Built for running several AI agent sessions in parallel. Once their pull requests merge, cleaning up used to mean finding every
 worktree, unlocking it, closing the window or terminal that still used it, and only then deleting
 the branch.
 
@@ -15,11 +14,13 @@ the branch.
 ## Features
 
 - **Delete Branch…** (*Branch Reaper: Delete Branch…*, `Ctrl+Alt+Shift+D`, `Cmd+Alt+Shift+D` on
-  macOS): check one or more local branches (merged ones are listed first) and press `Enter`;
-  `Enter` without checking anything deletes the highlighted branch. Each item shows
+  macOS): check one or more local branches and press `Enter`; `Enter` without checking anything
+  deletes the highlighted branch. Branches are listed in two sections, *Merged* and *Unmerged or
+  upstream gone*, oldest last commit first. Each item shows
   - the branch name and the age of its last commit,
   - its worktrees and their paths, with a lock icon for locked worktrees,
-  - its merge status: *merged*, *upstream gone*, *merged (squash)* or *unmerged*.
+  - its merge status: *merged*, *merged (squash)*, *upstream gone* (the remote branch was deleted,
+    but its changes were not found in the default branch) or *unmerged*.
 
   The list opens instantly with the branches loaded last time and updates while it is open.
 
@@ -42,13 +43,15 @@ the branch.
   3. or, optionally, whose changes are already in the default branch (empty tree diff, or a merge
      that would not change the default branch).
 
-  All branches are checked, except those with a worktree that has uncommitted changes (it may
-  belong to an agent session that is still running). Uncheck the ones to keep.
+  All branches are checked (oldest first), except those with a worktree that has uncommitted
+  changes (it may belong to an agent session that is still running) and those whose upstream is
+  gone but whose changes were not found in the default branch. Uncheck the ones to keep.
 
 - **Branches & Worktrees view** in the Source Control side bar (`Ctrl+Shift+G`; if it is hidden,
-  enable it in the `…` menu → *Views*): local branches grouped into *Merged or upstream gone*,
-  *Unmerged* and *Protected or in use*, with merge status, last commit age, worktrees and lock
-  state.
+  enable it in the `…` menu → *Views*): local branches grouped into *Merged*, *Unmerged or
+  upstream gone* and *Protected or in use*, oldest last commit first, with merge status, last
+  commit age, worktrees and lock state. Branches whose upstream is gone are under *Unmerged* on
+  purpose: their changes were not found in the default branch, so check them before deleting.
   - **Check** the branches to delete (checking a group checks all of its branches, the toolbar's
     *Check All Merged Branches* checks every merged one), then click **Delete Checked Branches**
     in the toolbar: one confirmation for all of them. The view's title shows how many are checked.

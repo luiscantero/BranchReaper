@@ -38,10 +38,11 @@ suite("merged detection", () => {
     assert.deepStrictEqual([...parseMergedBranches("refs/heads/main\r\nrefs/heads/a/b\nrefs/remotes/origin/x\n\n")], ["main", "a/b"]);
   });
 
-  test("mergeStatus prefers ancestry, then gone upstream, then content", () => {
+  test("mergeStatus prefers ancestry, then content, then gone upstream", () => {
     const merged = new Set(["m"]);
-    const content = new Set(["m", "s", "g"]);
+    const content = new Set(["m", "s", "sg"]);
     assert.strictEqual(mergeStatus({ name: "m", upstreamGone: true }, merged, content), "merged");
+    assert.strictEqual(mergeStatus({ name: "sg", upstreamGone: true }, merged, content), "squashMerged");
     assert.strictEqual(mergeStatus({ name: "g", upstreamGone: true }, merged, content), "gone");
     assert.strictEqual(mergeStatus({ name: "s", upstreamGone: false }, merged, content), "squashMerged");
     assert.strictEqual(mergeStatus({ name: "u", upstreamGone: false }, merged, content), "unmerged");

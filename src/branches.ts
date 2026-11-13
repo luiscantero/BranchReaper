@@ -62,8 +62,9 @@ export function parseMergedBranches(output: string): Set<string> {
 
 /**
  * - `merged`: reachable from the default branch (`git branch --merged`).
- * - `gone`: the upstream branch was deleted on the remote, typically after a (squash) merge.
  * - `squashMerged`: not an ancestor, but its changes are already in the default branch.
+ * - `gone`: the upstream branch was deleted on the remote (typically after a merge), but its
+ *   changes were not found in the default branch, so it needs a closer look.
  * - `unmerged`: anything else.
  */
 export type MergeStatus = "merged" | "gone" | "squashMerged" | "unmerged";
@@ -76,17 +77,28 @@ export function mergeStatus(
   if (merged.has(branch.name)) {
     return "merged";
   }
-  if (branch.upstreamGone) {
-    return "gone";
-  }
   if (contentMerged.has(branch.name)) {
     return "squashMerged";
+  }
+  if (branch.upstreamGone) {
+    return "gone";
   }
   return "unmerged";
 }
 
+/** Candidates for Clean Up Merged Branches (merged, squash-merged or upstream gone). */
 export function isMergedStatus(status: MergeStatus): boolean {
   return status !== "unmerged";
+}
+
+/** The branch's changes are in the default branch, so deleting it loses nothing. */
+export function isSafelyMerged(status: MergeStatus): boolean {
+  return status === "merged" || status === "squashMerged";
+}
+
+/** Oldest last commit first, then by name. */
+export function compareByAge(a: Pick<BranchRef, "name" | "committerDate">, b: Pick<BranchRef, "name" | "committerDate">): number {
+  return a.committerDate - b.committerDate || a.name.localeCompare(b.name);
 }
 
 export function describeStatus(status: MergeStatus): string {

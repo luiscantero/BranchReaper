@@ -168,7 +168,7 @@ export async function loadSnapshot(git: Git, repo: RepoInfo, options: { detectSq
   if (base) {
     merged = parseMergedBranches(await git.exec(cwd, ["branch", "--merged", base.ref, "--format=%(refname)"], { quiet: true }));
     if (options.detectSquashMerged) {
-      const candidates = branches.filter((b) => !merged.has(b.name) && !b.upstreamGone && b.name !== base.name);
+      const candidates = branches.filter((b) => !merged.has(b.name) && b.name !== base.name);
       contentMerged = await contentMergedBranches(git, cwd, base, candidates);
     }
   }

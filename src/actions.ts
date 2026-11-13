@@ -1,6 +1,6 @@
 import * as path from "path";
 import * as vscode from "vscode";
-import { describeStatus, isMergedStatus, relativeAge } from "./branches";
+import { compareByAge, describeStatus, isMergedStatus, isSafelyMerged, relativeAge } from "./branches";
 import { Logger } from "./git";
 import { BranchEntry, Model, settings } from "./model";
 import { pathKey, shortPath } from "./paths";
@@ -123,7 +123,8 @@ export class Actions {
       }
       const checked = new Set(quickPick.selectedItems.map((i) => i.key));
       const multiRepo = list.length > 1;
-      const items: Item[] = [];
+      const merged: Item[] = [];
+      const other: Item[] = [];
       let refused = 0;
       for (const snapshot of list) {
         for (const entry of this.model.entries(snapshot)) {
@@ -131,13 +132,21 @@ export class Actions {
             refused++;
             continue;
           }
-          items.push({ ...branchItem(entry, multiRepo), key: `${snapshot.repo.key}\0${entry.branch.name}` });
+          const item = { ...branchItem(entry, multiRepo), key: `${snapshot.repo.key}\0${entry.branch.name}` };
+          (isSafelyMerged(statusOf(entry)) ? merged : other).push(item);
         }
       }
-      // Merged branches first: they are the usual candidates.
-      items.sort((a, b) => Number(isMergedStatus(statusOf(b.entry))) - Number(isMergedStatus(statusOf(a.entry))));
+      const byAge = (a: Item, b: Item) => compareByAge(a.entry.branch, b.entry.branch);
+      const separator = (label: string) => ({ label, kind: vscode.QuickPickItemKind.Separator }) as Item;
+      const items: Item[] = [];
+      if (merged.length > 0) {
+        items.push(separator("Merged"), ...merged.sort(byAge));
+      }
+      if (other.length > 0) {
+        items.push(separator("Unmerged or upstream gone"), ...other.sort(byAge));
+      }
       quickPick.items = items;
-      quickPick.selectedItems = items.filter((i) => checked.has(i.key));
+      quickPick.selectedItems = items.filter((i) => i.key && checked.has(i.key));
       quickPick.placeholder =
         list.length === 0
           ? "No git repository found in this window."
@@ -200,7 +209,10 @@ export class Actions {
       },
     );
     const multiRepo = snapshots.length > 1;
-    const candidates = snapshots.flatMap((s) => this.model.entries(s)).filter((e) => "plan" in e.result && isMergedStatus(e.result.plan.status));
+    const candidates = snapshots
+      .flatMap((s) => this.model.entries(s))
+      .filter((e) => "plan" in e.result && isMergedStatus(e.result.plan.status))
+      .sort((a, b) => compareByAge(a.branch, b.branch));
     if (candidates.length === 0) {
       void vscode.window.showInformationMessage("Branch Reaper: no merged branches to clean up.");
       return undefined;
@@ -210,10 +222,13 @@ export class Actions {
     const items: Item[] = candidates.map((entry) => {
       const item = branchItem(entry, multiRepo) as Item;
       const hasDirty = "plan" in entry.result && entry.result.plan.worktrees.some((w) => dirty.has(w.path));
-      // Worktrees with uncommitted changes may belong to a session that is still running.
-      item.picked = !hasDirty;
-      if (hasDirty) {
-        item.detail = `$(warning) uncommitted changes · ${item.detail ?? ""}`;
+      // Worktrees with uncommitted changes may belong to a session that is still running, and a
+      // gone upstream alone does not prove that the changes were merged: leave those unchecked.
+      const safe = isSafelyMerged(statusOf(entry));
+      item.picked = !hasDirty && safe;
+      const warnings = [hasDirty ? "uncommitted changes" : undefined, safe ? undefined : "changes not found in the default branch"].filter(Boolean);
+      if (warnings.length > 0) {
+        item.detail = `$(warning) ${warnings.join(", ")} · ${item.detail ?? ""}`;
       }
       return item;
     });

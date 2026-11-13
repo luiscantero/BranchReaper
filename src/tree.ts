@@ -1,6 +1,6 @@
 import * as path from "path";
 import * as vscode from "vscode";
-import { describeStatus, isMergedStatus, relativeAge } from "./branches";
+import { compareByAge, describeStatus, isSafelyMerged, relativeAge } from "./branches";
 import { BranchEntry, Model } from "./model";
 import { Worktree, branchName } from "./porcelain";
 import { RepoSnapshot } from "./repo";
@@ -15,8 +15,8 @@ export type Node =
   | { kind: "message"; text: string };
 
 const GROUP_LABELS: Record<GroupKind, string> = {
-  merged: "Merged or upstream gone",
-  unmerged: "Unmerged",
+  merged: "Merged",
+  unmerged: "Unmerged or upstream gone",
   refused: "Protected or in use",
 };
 
@@ -63,7 +63,7 @@ export class BranchTree implements vscode.TreeDataProvider<Node> {
   async checkMerged() {
     for (const snapshot of await this.currentSnapshots()) {
       for (const entry of this.model.entries(snapshot)) {
-        if ("plan" in entry.result && isMergedStatus(entry.result.plan.status)) {
+        if ("plan" in entry.result && isSafelyMerged(entry.result.plan.status)) {
           this.checked.add(entryKey(entry));
         }
       }
@@ -212,8 +212,11 @@ export class BranchTree implements vscode.TreeDataProvider<Node> {
       if ("refused" in entry.result) {
         groups.refused.push(entry);
       } else {
-        groups[isMergedStatus(entry.result.plan.status) ? "merged" : "unmerged"].push(entry);
+        groups[isSafelyMerged(entry.result.plan.status) ? "merged" : "unmerged"].push(entry);
       }
+    }
+    for (const list of Object.values(groups)) {
+      list.sort((a, b) => compareByAge(a.branch, b.branch));
     }
     const nodes: Node[] = (Object.keys(groups) as GroupKind[])
       .filter((group) => groups[group].length > 0)
