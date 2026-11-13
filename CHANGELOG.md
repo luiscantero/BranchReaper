@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.2.1
+
+- Unmerged and upstream-gone branches no longer have a checkbox in the Branches & Worktrees view; select them with Ctrl+click instead.
+
 ## 0.2.0
 
 - Branches merged into other target branches, such as `preview` or `release/1.5`, count as merged (new setting `branchReaper.targetBranches`); the status names the target.
