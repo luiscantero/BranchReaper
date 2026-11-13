@@ -15,7 +15,7 @@ or terminal that still used it, and only then deleting the branch.
 - **Delete Branch…** (*Branch Reaper: Delete Branch…*, `Ctrl+Alt+Shift+D`, `Cmd+Alt+Shift+D` on
   macOS): check one or more local branches and press `Enter`; `Enter` without checking anything
   deletes the highlighted branch. Branches are listed in two sections, *Merged* and *Unmerged or
-  upstream gone*, oldest last commit first. Each item shows
+  upstream gone*, newest last commit first. Each item shows
   - the branch name and the age of its last commit,
   - its worktrees and their paths, with a lock icon for locked worktrees,
   - its merge status: *merged*, *merged (squash)*, *upstream gone* (the remote branch was deleted,
@@ -44,13 +44,13 @@ or terminal that still used it, and only then deleting the branch.
      merge that would not change it). The status then says where, for example *merged (squash)
      into release/1.5*.
 
-  All branches are checked (oldest first), except those with a worktree that has uncommitted
+  All branches are checked (newest first), except those with a worktree that has uncommitted
   changes (it may belong to an agent session that is still running) and those whose upstream is
   gone but whose changes were not found in the default branch. Uncheck the ones to keep.
 
 - **Branches & Worktrees view** in the Source Control side bar (`Ctrl+Shift+G`; if it is hidden,
   enable it in the `…` menu → *Views*): local branches grouped into *Merged*, *Unmerged or
-  upstream gone* and *Protected or in use*, oldest last commit first, with merge status, last
+  upstream gone* and *Protected or in use*, newest last commit first, with merge status, last
   commit age, worktrees and lock state. Long branch names are shortened to their last segment
   (`users/luis/new-feature` shows as `new-feature`, with more segments if two branches would
   look alike); hover a branch to see its full name, upstream and worktrees. Branches whose
@@ -163,7 +163,7 @@ Requirements: Node.js 20+ and git.
 npm install
 npm test          # unit tests, then integration tests in a downloaded VS Code
 npm run package   # writes branch-reaper-<version>.vsix
-code --install-extension branch-reaper-0.2.1.vsix
+code --install-extension branch-reaper-0.2.2.vsix
 ```
 
 The VSIX contains only JavaScript, so the same file works on Windows, macOS and Linux, and one

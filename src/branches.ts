@@ -96,9 +96,9 @@ export function isSafelyMerged(status: MergeStatus): boolean {
   return status === "merged" || status === "squashMerged";
 }
 
-/** Oldest last commit first, then by name. */
+/** Newest last commit first, then by name. */
 export function compareByAge(a: Pick<BranchRef, "name" | "committerDate">, b: Pick<BranchRef, "name" | "committerDate">): number {
-  return a.committerDate - b.committerDate || a.name.localeCompare(b.name);
+  return b.committerDate - a.committerDate || a.name.localeCompare(b.name);
 }
 
 /** `into` names a target other than the default branch, for example `merged into preview`. */
