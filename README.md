@@ -4,12 +4,11 @@
 have uncommitted changes, or are open in another VS Code window. Also cleans up merged and
 squash-merged branches in bulk.
 
-Built for running several AI agent sessions in parallel. Once their pull requests merge, cleaning up used to mean finding every
-worktree, unlocking it, closing the window or terminal that still used it, and only then deleting
-the branch.
+Built for running several AI agent sessions in parallel, each in its own worktree. Once their pull
+requests merge, cleaning up used to mean finding every worktree, unlocking it, closing the window
+or terminal that still used it, and only then deleting the branch.
 
-<!-- TODO: replace with a GIF of deleting a branch from the Branches & Worktrees view -->
-![Deleting a branch with a locked worktree from the Branches & Worktrees view](images/delete-branch.gif)
+![Branches & Worktrees view with merged branches checked, a locked worktree and an unmerged branch whose upstream is gone](images/tree-view.png)
 
 ## Features
 
@@ -24,16 +23,16 @@ the branch.
 
   The list opens instantly with the branches loaded last time and updates while it is open.
 
-  <!-- TODO: screenshot -->
-  ![Quick pick of branches with worktrees, lock state and merge status](images/quick-pick.png)
+  ![Delete Branch… list with two branches checked, their worktrees, lock state and merge status](images/quick-pick.png)
 
 - **One confirmation** that lists exactly what will be removed: the worktree folders (marked
   *locked* or *uncommitted changes*), the local branch, the remote branch (see
   `branchReaper.deleteRemote`), and the VS Code windows that will be closed or lose a folder.
   After that, everything happens without further prompts.
 
-  <!-- TODO: screenshot -->
-  ![Confirmation listing the worktrees, the branch and the window that will be closed](images/confirmation.png)
+  ![Confirmation listing four branches and their worktrees, one of them locked](images/confirmation.png)
+
+  ![Summary notification: Deleted 4 branches, 3 worktrees (1 was locked)](images/summary.png)
 
 - **Clean Up Merged Branches** (*Branch Reaper: Clean Up Merged Branches*): runs
   `git fetch --prune`, then offers every branch that is
@@ -50,17 +49,19 @@ the branch.
 - **Branches & Worktrees view** in the Source Control side bar (`Ctrl+Shift+G`; if it is hidden,
   enable it in the `…` menu → *Views*): local branches grouped into *Merged*, *Unmerged or
   upstream gone* and *Protected or in use*, oldest last commit first, with merge status, last
-  commit age, worktrees and lock state. Branches whose upstream is gone are under *Unmerged* on
-  purpose: their changes were not found in the default branch, so check them before deleting.
+  commit age, worktrees and lock state. Long branch names are shortened to their last segment
+  (`users/luis/new-feature` shows as `new-feature`, with more segments if two branches would
+  look alike); hover a branch to see its full name, upstream and worktrees. Branches whose
+  upstream is gone are under *Unmerged* on purpose: their changes were not found in the default
+  branch, so check them before deleting.
   - **Check** the branches to delete (checking the *Merged* group checks all of its branches, as
     does the toolbar's *Check All Merged Branches*; *Unmerged or upstream gone* branches can only
-    be checked one by one), then click **Delete Checked Branches**
-    in the toolbar: one confirmation for all of them. The view's title shows how many are checked.
+    be checked one by one), then click **Delete Checked Branches** in the toolbar: one
+    confirmation for all of them. The view's title shows how many are checked.
   - Inline buttons delete a single branch or open a worktree in a new window; the toolbar also
     has *Clean Up Merged Branches* and *Refresh*.
 
-  <!-- TODO: screenshot -->
-  ![Branches & Worktrees view](images/tree-view.png)
+  ![Tooltip with the full branch name, its upstream and its locked worktree](images/tooltip.png)
 
 - **Source Control Repositories view**: *Delete Branch (incl. Worktrees)* in the context menu of a
   repository deletes the branch of that worktree (for the main worktree, it opens the branch
@@ -160,13 +161,15 @@ npm run package   # writes branch-reaper-<version>.vsix
 code --install-extension branch-reaper-0.1.0.vsix
 ```
 
-The VSIX contains only JavaScript, so the same file works on Windows, macOS and Linux.
+The VSIX contains only JavaScript, so the same file works on Windows, macOS and Linux, and one
+upload to the Marketplace covers all of them.
 
-To build and test on Linux, use WSL (Ubuntu with `rsync`, Node.js 20+ and the libraries VS Code
+To test and package on Linux, use WSL (Ubuntu with `rsync`, Node.js 20+ and the libraries VS Code
 needs, such as `libgtk-3-0t64`, `libnss3`, `libgbm1` and `libasound2t64`). From PowerShell:
 
 ```powershell
 .\scripts\wsl-build.ps1   # copies the sources to ~/builds/branch-reaper, runs npm test, packages
+                          # and copies branch-reaper-<version>-linux.vsix back here
 ```
 
 The integration tests use WSLg's display, or `xvfb-run` if it is installed.
@@ -176,13 +179,23 @@ The integration tests use WSLg's display, or `xvfb-run` if it is installed.
 
 For development, run `npm run watch` and press `F5` (*Run Extension*).
 
+### Screenshots
+
+`npm run screenshots` recreates the images in `images/`: it builds a demo repository in
+`C:\src\contoso-app` (`/tmp/src` elsewhere, or `DEMO_ROOT`), opens it in a downloaded VS Code
+with the extension, and removes it afterwards. The images are not packaged; the Marketplace
+shows them from GitHub, so push them before publishing.
+
 ### Release
 
-1. Set the new version (`npm version <x.y.z> --no-git-tag-version`) and update the VSIX file name
-   in the `code --install-extension` example above.
+1. Set the new version (`npm version <x.y.z> --no-git-tag-version`), add it to `CHANGELOG.md`,
+   and update the VSIX file name in the `code --install-extension` example above.
 2. Commit as `Release v<x.y.z>`, tag it (`git tag -a v<x.y.z> -m v<x.y.z>`), and push the commit
    and the tag.
-3. `npm run package` and upload the VSIX to the Marketplace.
+3. `npm test`, `npm run package` (Windows) and `.\scripts\wsl-build.ps1` (Linux).
+4. Upload `branch-reaper-<x.y.z>.vsix` at
+   [marketplace.visualstudio.com/manage/publishers/luiscantero](https://marketplace.visualstudio.com/manage/publishers/luiscantero)
+   (or `npx vsce publish --packagePath branch-reaper-<x.y.z>.vsix`).
 
 ## Feedback
 

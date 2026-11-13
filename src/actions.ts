@@ -150,7 +150,7 @@ export class Actions {
       quickPick.placeholder =
         list.length === 0
           ? "No git repository found in this window."
-          : `Check the branches to delete with all of their worktrees, then press Enter${refused ? ` (${refused} protected or in-use branch${refused === 1 ? " is" : "es are"} not listed)` : ""}`;
+          : `Check the branches to delete, then press Enter${refused ? ` · ${refused} protected or in use not listed` : ""}`;
     };
     const cached = snapshots ?? this.model.cached;
     if (cached) {

@@ -1,6 +1,6 @@
 import * as path from "path";
 import * as vscode from "vscode";
-import { compareByAge, describeStatus, isSafelyMerged, relativeAge } from "./branches";
+import { compareByAge, describeStatus, isSafelyMerged, relativeAge, shortBranchLabels } from "./branches";
 import { BranchEntry, Model } from "./model";
 import { Worktree, branchName } from "./porcelain";
 import { RepoSnapshot } from "./repo";
@@ -10,7 +10,7 @@ type GroupKind = "merged" | "unmerged" | "refused";
 export type Node =
   | { kind: "repo"; snapshot: RepoSnapshot }
   | { kind: "group"; group: GroupKind; snapshot: RepoSnapshot; entries: BranchEntry[] }
-  | { kind: "branch"; entry: BranchEntry; worktrees: Worktree[] }
+  | { kind: "branch"; entry: BranchEntry; label: string; worktrees: Worktree[] }
   | { kind: "worktree"; worktree: Worktree }
   | { kind: "message"; text: string };
 
@@ -129,7 +129,7 @@ export class BranchTree implements vscode.TreeDataProvider<Node> {
         const { entry, worktrees } = node;
         const status = entry.snapshot.statuses.get(entry.branch.name) ?? "unmerged";
         const item = new vscode.TreeItem(
-          entry.branch.name,
+          node.label,
           worktrees.length > 0 ? vscode.TreeItemCollapsibleState.Collapsed : vscode.TreeItemCollapsibleState.None,
         );
         item.id = `${entry.snapshot.repo.key}:branch:${entry.branch.name}`;
@@ -139,7 +139,10 @@ export class BranchTree implements vscode.TreeDataProvider<Node> {
           parts.push(entry.result.refused);
         }
         if (worktrees.length === 1) {
-          parts.push(path.basename(path.normalize(worktrees[0].path)));
+          const folder = path.basename(path.normalize(worktrees[0].path));
+          if (folder.toLowerCase() !== node.label.toLowerCase()) {
+            parts.push(folder);
+          }
         } else if (worktrees.length > 1) {
           parts.push(`${worktrees.length} worktrees`);
         }
@@ -193,12 +196,16 @@ export class BranchTree implements vscode.TreeDataProvider<Node> {
     switch (node.kind) {
       case "repo":
         return this.groups(node.snapshot);
-      case "group":
+      case "group": {
+        // Unique across the whole repository, so that labels in different groups do not look alike.
+        const labels = shortBranchLabels(node.snapshot.branches.map((b) => b.name));
         return node.entries.map((entry) => ({
           kind: "branch",
           entry,
+          label: labels.get(entry.branch.name) ?? entry.branch.name,
           worktrees: entry.snapshot.worktrees.filter((w) => branchName(w.branch) === entry.branch.name),
         }));
+      }
       case "branch":
         return node.worktrees.map((worktree) => ({ kind: "worktree", worktree }));
       default:

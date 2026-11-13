@@ -6,6 +6,7 @@ param([switch]$SkipTests, [string]$Distro = "Ubuntu")
 $ErrorActionPreference = "Stop"
 $root = Split-Path -Parent $PSScriptRoot
 $wslRoot = (wsl -d $Distro -- wslpath -a ($root -replace '\\', '/')).Trim()
+$version = (Get-Content (Join-Path $root "package.json") -Raw | ConvertFrom-Json).version
 $test = if ($SkipTests) { "true" } else { 'if command -v xvfb-run >/dev/null; then xvfb-run -a npm test; else npm test; fi' }
 $script = @"
 set -e
@@ -16,6 +17,7 @@ export npm_config_allow_remote=all
 npm ci --no-audit --no-fund
 $test
 npx vsce package --out ~/builds/branch-reaper/branch-reaper-linux.vsix
+cp ~/builds/branch-reaper/branch-reaper-linux.vsix '$wslRoot/branch-reaper-$version-linux.vsix'
 "@
 # bash -i loads ~/.bashrc, where nvm puts node on the PATH.
 wsl -d $Distro -- bash -ic ($script -replace "`r", "")

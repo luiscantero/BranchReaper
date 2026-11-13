@@ -3,6 +3,7 @@
 src/**
 out/**
 scripts/**
+images/**
 node_modules/**
 dist/**/*.map
 esbuild.mjs

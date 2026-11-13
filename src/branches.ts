@@ -114,6 +114,36 @@ export function describeStatus(status: MergeStatus): string {
   }
 }
 
+/**
+ * Short display labels: `users/luis/new-feature` becomes `new-feature`, the part that tells
+ * branches apart. Branches whose last segments collide keep as many segments as needed.
+ */
+export function shortBranchLabels(names: readonly string[]): Map<string, string> {
+  const labels = new Map<string, string>();
+  const segments = (name: string) => name.split("/");
+  const tail = (name: string, count: number) => segments(name).slice(-count).join("/");
+  let pending = [...new Set(names)];
+  for (let count = 1; pending.length > 0; count++) {
+    const byTail = new Map<string, string[]>();
+    for (const name of pending) {
+      const key = tail(name, count).toLowerCase();
+      byTail.set(key, [...(byTail.get(key) ?? []), name]);
+    }
+    const next: string[] = [];
+    for (const group of byTail.values()) {
+      for (const name of group) {
+        if (group.length === 1 || count >= segments(name).length) {
+          labels.set(name, tail(name, count));
+        } else {
+          next.push(name);
+        }
+      }
+    }
+    pending = next;
+  }
+  return labels;
+}
+
 /** Short relative age, for example `5m ago`, `2d ago` or `just now`. */
 export function relativeAge(unixSeconds: number, nowMs = Date.now()): string {
   const seconds = Math.max(0, Math.round(nowMs / 1000 - unixSeconds));

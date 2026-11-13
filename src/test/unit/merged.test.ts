@@ -1,7 +1,7 @@
 import * as assert from "assert";
 import * as fs from "fs";
 import * as path from "path";
-import { BranchRef, isContentMerged, mergeStatus, parseBranches, parseMergedBranches, relativeAge } from "../../branches";
+import { BranchRef, isContentMerged, mergeStatus, parseBranches, parseMergedBranches, relativeAge, shortBranchLabels } from "../../branches";
 import { Git, Logger } from "../../git";
 import { shortPath } from "../../paths";
 import { planDeletion, PlanInput } from "../../plan";
@@ -53,6 +53,22 @@ suite("merged detection", () => {
     assert.strictEqual(shortPath("C:\\Users\\me\\Repos\\app.worktrees\\feature-x\\", path.win32), "C:\\…\\feature-x");
     assert.strictEqual(shortPath("C:\\wt", path.win32), "C:\\wt");
     assert.strictEqual(shortPath("/home/me/repos/app.worktrees/feature-x", path.posix), "/…/feature-x");
+  });
+
+  test("shortBranchLabels keeps the last segment unless it is ambiguous", () => {
+    const labels = shortBranchLabels(["users/luis/new-feature", "main", "users/luis/fix", "users/ana/fix", "fix", "a/b/c/x", "d/c/x", "x", "a/b/y", "b/y"]);
+    assert.deepStrictEqual(Object.fromEntries(labels), {
+      "users/luis/new-feature": "new-feature",
+      main: "main",
+      "users/luis/fix": "luis/fix",
+      "users/ana/fix": "ana/fix",
+      fix: "fix",
+      "a/b/c/x": "b/c/x",
+      "d/c/x": "d/c/x",
+      x: "x",
+      "a/b/y": "a/b/y",
+      "b/y": "b/y",
+    });
   });
 
   test("relativeAge picks the largest unit", () => {
