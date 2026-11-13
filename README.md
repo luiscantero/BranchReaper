@@ -56,10 +56,12 @@ or terminal that still used it, and only then deleting the branch.
   look alike); hover a branch to see its full name, upstream and worktrees. Branches whose
   upstream is gone are under *Unmerged* on purpose: their changes were not found in the default
   branch, so check them before deleting.
-  - **Check** the branches to delete (checking the *Merged* group checks all of its branches, as
-    does the toolbar's *Check All Merged Branches*; *Unmerged or upstream gone* branches can only
-    be checked one by one), then click **Delete Checked Branches** in the toolbar: one
-    confirmation for all of them. The view's title shows how many are checked.
+  - **Check** merged branches to delete (checking the *Merged* group checks all of them, as does
+    the toolbar's *Check All Merged Branches*), then click **Delete Checked Branches** in the
+    toolbar: one confirmation for all of them. The view's title shows how many are checked.
+  - *Unmerged or upstream gone* branches have no checkbox, to make mistakes unlikely: delete one
+    with its trash button, or select several with `Ctrl+click` (`Cmd+click` on macOS) and choose
+    *Delete Branch (incl. Worktrees)* in the context menu.
   - Inline buttons delete a single branch or open a worktree in a new window; the toolbar also
     has *Clean Up Merged Branches* and *Refresh*.
 
@@ -161,7 +163,7 @@ Requirements: Node.js 20+ and git.
 npm install
 npm test          # unit tests, then integration tests in a downloaded VS Code
 npm run package   # writes branch-reaper-<version>.vsix
-code --install-extension branch-reaper-0.2.0.vsix
+code --install-extension branch-reaper-0.2.1.vsix
 ```
 
 The VSIX contains only JavaScript, so the same file works on Windows, macOS and Linux, and one

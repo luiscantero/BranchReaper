@@ -196,10 +196,10 @@ async function main() {
     await runCommand("View: Focus on Branches & Worktrees View");
     // Collapse the other Source Control views so the Branches & Worktrees view gets the space.
     for (const title of ["Changes", "Graph"]) {
-      const header = page.locator(".pane-header[aria-expanded='true']").filter({ hasText: new RegExp(`^${title}`) });
-      if (await header.count()) {
-        await header.first().locator("h3.title").click();
-        await sleep(300);
+      const expanded = () => page.locator(".pane-header[aria-expanded='true']").filter({ hasText: new RegExp(`^${title}`) });
+      for (let attempt = 0; attempt < 5 && (await expanded().count()) > 0; attempt++) {
+        await expanded().first().locator("h3.title").click();
+        await sleep(500);
       }
     }
     // Widen the side bar.

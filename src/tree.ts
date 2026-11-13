@@ -47,7 +47,7 @@ export class BranchTree implements vscode.TreeDataProvider<Node> {
   setChecked(changes: readonly (readonly [Node, vscode.TreeItemCheckboxState])[]) {
     for (const [node, state] of changes) {
       const entries = node.kind === "branch" ? [node.entry] : node.kind === "group" ? node.entries : [];
-      for (const entry of entries.filter((e) => "plan" in e.result)) {
+      for (const entry of entries.filter((e) => "plan" in e.result && isSafelyMerged(e.result.plan.status))) {
         if (state === vscode.TreeItemCheckboxState.Checked) {
           this.checked.add(entryKey(entry));
         } else {
@@ -85,7 +85,12 @@ export class BranchTree implements vscode.TreeDataProvider<Node> {
   private currentSnapshots(): Promise<RepoSnapshot[]> {
     this.snapshots ??= this.model.snapshots().then((snapshots) => {
       // Forget checked branches that no longer exist or can no longer be deleted.
-      const deletable = new Set(snapshots.flatMap((s) => this.model.entries(s)).filter((e) => "plan" in e.result).map(entryKey));
+      const deletable = new Set(
+        snapshots
+          .flatMap((s) => this.model.entries(s))
+          .filter((e) => "plan" in e.result && isSafelyMerged(e.result.plan.status))
+          .map(entryKey),
+      );
       const before = this.checked.size;
       for (const key of [...this.checked]) {
         if (!deletable.has(key)) {
@@ -163,7 +168,8 @@ export class BranchTree implements vscode.TreeDataProvider<Node> {
         }
         item.tooltip = tooltip;
         item.contextValue = "plan" in entry.result ? "branch.deletable" : "branch.protected";
-        if ("plan" in entry.result) {
+        // Only merged branches get a checkbox; unmerged ones are selected with Ctrl+click on purpose.
+        if ("plan" in entry.result && isSafelyMerged(entry.result.plan.status)) {
           item.checkboxState = this.checked.has(entryKey(entry)) ? vscode.TreeItemCheckboxState.Checked : vscode.TreeItemCheckboxState.Unchecked;
         }
         return item;
