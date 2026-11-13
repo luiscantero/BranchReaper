@@ -167,12 +167,11 @@ code --install-extension branch-reaper-0.2.0.vsix
 The VSIX contains only JavaScript, so the same file works on Windows, macOS and Linux, and one
 upload to the Marketplace covers all of them.
 
-To test and package on Linux, use WSL (Ubuntu with `rsync`, Node.js 20+ and the libraries VS Code
+To run the tests on Linux, use WSL (Ubuntu with `rsync`, Node.js 20+ and the libraries VS Code
 needs, such as `libgtk-3-0t64`, `libnss3`, `libgbm1` and `libasound2t64`). From PowerShell:
 
 ```powershell
-.\scripts\wsl-build.ps1   # copies the sources to ~/builds/branch-reaper, runs npm test, packages
-                          # and copies branch-reaper-<version>-linux.vsix back here
+.\scripts\wsl-test.ps1   # copies the sources to ~/builds/branch-reaper and runs npm test there
 ```
 
 The integration tests use WSLg's display, or `xvfb-run` if it is installed.
@@ -195,7 +194,7 @@ shows them from GitHub, so push them before publishing.
    and update the VSIX file name in the `code --install-extension` example above.
 2. Commit as `Release v<x.y.z>`, tag it (`git tag -a v<x.y.z> -m v<x.y.z>`), and push the commit
    and the tag.
-3. `npm test`, `npm run package` (Windows) and `.\scripts\wsl-build.ps1` (Linux).
+3. `npm test` and `npm run package` (optionally `.\scripts\wsl-test.ps1` to test on Linux).
 4. Upload `branch-reaper-<x.y.z>.vsix` at
    [marketplace.visualstudio.com/manage/publishers/luiscantero](https://marketplace.visualstudio.com/manage/publishers/luiscantero)
    (or `npx vsce publish --packagePath branch-reaper-<x.y.z>.vsix`).
