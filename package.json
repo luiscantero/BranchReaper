@@ -2,7 +2,7 @@
   "name": "branch-reaper",
   "displayName": "Branch Reaper",
   "description": "Delete a git branch and all of its worktrees in one click, even locked, dirty or open ones. Bulk clean-up of merged and squash-merged branches.",
-  "version": "0.2.1",
+  "version": "0.2.2",
   "publisher": "luiscantero",
   "license": "MIT",
   "icon": "icon.png",

@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.2.2
+
+- Branches are sorted newest first (most recent last commit at the top).
+
 ## 0.2.1
 
 - Unmerged and upstream-gone branches no longer have a checkbox in the Branches & Worktrees view; select them with Ctrl+click instead.
