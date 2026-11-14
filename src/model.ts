@@ -7,7 +7,7 @@ import { getGitApi } from "./windows";
 
 export type DeleteRemote = "never" | "ask" | "always";
 
-const DEFAULT_TARGET_BRANCHES = ["main", "master", "develop", "dev", "preview", "release*", "release/**", "releases/**", "hotfix/**"];
+const DEFAULT_TARGET_BRANCHES = ["main", "master", "develop", "dev", "preview", "preview/**", "release*", "release/**", "releases/**", "hotfix/**"];
 
 export interface Settings {
   protectedBranches: string[];

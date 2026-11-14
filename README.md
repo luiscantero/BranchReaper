@@ -119,7 +119,7 @@ extension, so branch names are never interpreted by a shell.
 | Setting | Default | Description |
 | --- | --- | --- |
 | `branchReaper.protectedBranches` | `["main", "master", "release*", "releases/*"]` | Branches that are never deleted. Case-insensitive globs: `*` matches within a path segment, `**` across segments, `?` one character. |
-| `branchReaper.targetBranches` | `["main", "master", "develop", "dev", "preview", "release*", "release/**", "releases/**", "hotfix/**"]` | Remote branches that pull requests merge into, besides the default branch. A branch merged into any of them counts as merged. Same glob syntax as `protectedBranches`. |
+| `branchReaper.targetBranches` | `["main", "master", "develop", "dev", "preview", "preview/**", "release*", "release/**", "releases/**", "hotfix/**"]` | Remote branches that pull requests merge into, besides the default branch. A branch merged into any of them counts as merged. Same glob syntax as `protectedBranches`. |
 | `branchReaper.deleteRemote` | `ask` | `never`, `ask` (the confirmation has a *Delete incl. Remote* button) or `always`. Branches whose upstream is gone are not pushed. |
 | `branchReaper.confirm` | `true` | Show the confirmation. When off, `ask` behaves like `never`. |
 | `branchReaper.worktreeDeleteRetryMs` | `5000` | How long to retry deleting a worktree folder that is in use, in milliseconds. |

@@ -247,6 +247,7 @@
             "develop",
             "dev",
             "preview",
+            "preview/**",
             "release*",
             "release/**",
             "releases/**",
