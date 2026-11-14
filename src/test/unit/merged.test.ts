@@ -1,7 +1,7 @@
 import * as assert from "assert";
 import * as fs from "fs";
 import * as path from "path";
-import { BranchRef, isContentMerged, mergeStatus, parseBranches, parseMergedBranches, relativeAge, shortBranchLabels } from "../../branches";
+import { BranchRef, isContentMerged, mergeStatus, parseBranches, relativeAge, shortBranchLabels } from "../../branches";
 import { Git, Logger } from "../../git";
 import { shortPath } from "../../paths";
 import { planDeletion, PlanInput } from "../../plan";
@@ -23,19 +23,15 @@ suite("merged detection", () => {
     ].join("\n");
     const branches = parseBranches(output);
     assert.deepStrictEqual(
-      branches.map((b) => [b.name, b.upstreamGone, b.remote, b.remoteRef]),
+      branches.map((b) => [b.name, b.upstreamGone, b.ahead, b.remote, b.remoteRef]),
       [
-        ["feature/a", true, "origin", "refs/heads/feature/a"],
-        ["b", false, "origin", "refs/heads/b"],
-        ["local", false, undefined, undefined],
+        ["feature/a", true, false, "origin", "refs/heads/feature/a"],
+        ["b", false, true, "origin", "refs/heads/b"],
+        ["local", false, false, undefined, undefined],
       ],
     );
     assert.strictEqual(branches[1].subject, "B: with\0nul");
     assert.strictEqual(branches[2].committerDate, 1700000002);
-  });
-
-  test("parseMergedBranches keeps local branches only", () => {
-    assert.deepStrictEqual([...parseMergedBranches("refs/heads/main\r\nrefs/heads/a/b\nrefs/remotes/origin/x\n\n")], ["main", "a/b"]);
   });
 
   test("mergeStatus prefers ancestry, then content, then gone upstream", () => {
@@ -105,6 +101,27 @@ suite("merged detection", () => {
       git(repo, "commit", "-q", "-m", "Squashed (#1)");
       commit(repo, "later.txt", "later\n", "later work on main");
       git(repo, "push", "-q", "origin", "main");
+      // behind: its upstream moved on elsewhere (overriding the local change), then was squash-merged.
+      git(repo, "checkout", "-q", "-b", "behind");
+      commit(repo, "pin.txt", "89\n", "pin 89");
+      git(repo, "push", "-q", "-u", "origin", "behind");
+      commit(repo, "pin.txt", "90\n", "pin 90");
+      git(repo, "push", "-q", "origin", "behind");
+      git(repo, "reset", "-q", "--hard", "HEAD~1");
+      // ahead: squash-merged, then got more local work; the merged upstream must not hide it.
+      git(repo, "checkout", "-q", "main");
+      git(repo, "checkout", "-q", "-b", "ahead");
+      commit(repo, "ahead.txt", "1\n", "ahead 1");
+      git(repo, "push", "-q", "-u", "origin", "ahead");
+      git(repo, "checkout", "-q", "main");
+      git(repo, "merge", "-q", "--squash", "origin/behind");
+      git(repo, "commit", "-q", "-m", "Behind (#3)");
+      git(repo, "merge", "-q", "--squash", "origin/ahead");
+      git(repo, "commit", "-q", "-m", "Ahead (#4)");
+      git(repo, "push", "-q", "origin", "main");
+      git(repo, "checkout", "-q", "ahead");
+      commit(repo, "ahead.txt", "2\n", "ahead 2");
+      git(repo, "checkout", "-q", "main");
       // gone: pushed with upstream, then deleted on the remote (as after a PR merge).
       git(repo, "checkout", "-q", "-b", "gone");
       commit(repo, "gone.txt", "g\n", "gone work");
@@ -146,6 +163,8 @@ suite("merged detection", () => {
       const withSquash = await loadSnapshot(gitRunner, info, { detectSquashMerged: true, targetBranches });
       assert.strictEqual(withSquash.base?.ref, "refs/remotes/origin/main");
       assert.deepStrictEqual(Object.fromEntries(withSquash.statuses), {
+        ahead: "unmerged",
+        behind: "squashMerged",
         gone: "gone",
         "into-preview": "squashMerged",
         "into-release": "merged",

@@ -1,6 +1,6 @@
 import * as fs from "fs";
 import * as path from "path";
-import { BRANCH_FORMAT, BranchRef, MergeStatus, isContentMerged, mergeStatus, parseBranches, parseMergedBranches } from "./branches";
+import { BRANCH_FORMAT, BranchRef, MergeStatus, isContentMerged, mergeStatus, parseBranches, upstreamToCheck } from "./branches";
 import { Git } from "./git";
 import { nativePath, pathKey } from "./paths";
 import { Worktree, parseWorktreeList } from "./porcelain";
@@ -104,15 +104,15 @@ const contentMergedCache = new Map<string, boolean>();
 let mergeTreeSupported = true;
 
 /** Whether the branch's changes are already in the target (squash or cherry-pick merges). */
-async function isContentMergedInto(git: Git, cwd: string, target: TargetBranch, branch: BranchRef): Promise<boolean> {
-  const key = `${target.sha}:${branch.sha}`;
+async function isContentMergedInto(git: Git, cwd: string, target: TargetBranch, sha: string): Promise<boolean> {
+  const key = `${target.sha}:${sha}`;
   const cached = contentMergedCache.get(key);
   if (cached !== undefined) {
     return cached;
   }
   let merged = false;
   if (mergeTreeSupported) {
-    const r = await git.run(cwd, ["merge-tree", "--write-tree", "--no-messages", target.sha, branch.sha], { quiet: true });
+    const r = await git.run(cwd, ["merge-tree", "--write-tree", "--no-messages", target.sha, sha], { quiet: true });
     if (r.code === 0 || r.code === 1) {
       merged = isContentMerged(r.code, r.stdout, target.tree);
     } else {
@@ -121,7 +121,7 @@ async function isContentMergedInto(git: Git, cwd: string, target: TargetBranch, 
     }
   }
   if (!mergeTreeSupported) {
-    merged = (await git.run(cwd, ["diff", "--quiet", target.sha, branch.sha], { quiet: true })).code === 0;
+    merged = (await git.run(cwd, ["diff", "--quiet", target.sha, sha], { quiet: true })).code === 0;
   }
   contentMergedCache.set(key, merged);
   return merged;
@@ -181,17 +181,28 @@ export async function loadSnapshot(git: Git, repo: RepoInfo, options: LoadOption
     listWorktrees(git, cwd),
     git.exec(cwd, ["for-each-ref", `--format=${BRANCH_FORMAT}`, "refs/heads"], { quiet: true }),
     git.exec(cwd, ["remote"], { quiet: true }),
-    git.exec(cwd, ["for-each-ref", "--format=%(refname)", "refs/remotes"], { quiet: true }),
+    git.exec(cwd, ["for-each-ref", "--format=%(refname)%00%(objectname)%00%(committerdate:unix)", "refs/remotes"], { quiet: true }),
   ]);
   const branches = parseBranches(branchOutput).sort((a, b) => a.name.localeCompare(b.name));
   const remotes = remoteOutput.split(/\r?\n/).map((r) => r.trim()).filter(Boolean);
-  const remoteBranches = new Set(
-    remoteBranchOutput
-      .split(/\r?\n/)
-      .map((r) => r.trim())
-      .filter((r) => r.startsWith("refs/remotes/") && !r.endsWith("/HEAD"))
-      .map((r) => r.slice("refs/remotes/".length)),
-  );
+  const remoteTips = new Map<string, { sha: string; committerDate: number }>();
+  for (const line of remoteBranchOutput.split(/\r?\n/)) {
+    const [ref, sha, date] = line.trim().split("\0");
+    if (ref?.startsWith("refs/remotes/") && !ref.endsWith("/HEAD") && sha) {
+      remoteTips.set(ref, { sha, committerDate: Number(date) || 0 });
+    }
+  }
+  const remoteBranches = new Set([...remoteTips.keys()].map((r) => r.slice("refs/remotes/".length)));
+  // Tips that count as the branch: its own and, when it only lags behind, its upstream's.
+  const tipsOf = (branch: BranchRef) => {
+    const tips = [{ ref: `refs/heads/${branch.name}`, sha: branch.sha, committerDate: branch.committerDate }];
+    const upstream = branch.upstream ? remoteTips.get(branch.upstream) : undefined;
+    const upstreamSha = upstreamToCheck(branch, upstream?.sha);
+    if (branch.upstream && upstream && upstreamSha) {
+      tips.push({ ref: branch.upstream, sha: upstreamSha, committerDate: upstream.committerDate });
+    }
+    return tips;
+  };
   const { base, defaultRemote } = await findBase(git, cwd, remotes);
   const merged = new Set<string>();
   const contentMerged = new Set<string>();
@@ -209,10 +220,12 @@ export async function loadSnapshot(git: Git, repo: RepoInfo, options: LoadOption
     };
     const ancestors = new Map<string, Set<string>>();
     await forEachLimited(targets, 8, async (target) => {
-      ancestors.set(target.ref, parseMergedBranches(await git.exec(cwd, ["for-each-ref", "--format=%(refname)", "--merged", target.sha, "refs/heads"], { quiet: true })));
+      const output = await git.exec(cwd, ["for-each-ref", "--format=%(refname)", "--merged", target.sha, "refs/heads", "refs/remotes"], { quiet: true });
+      ancestors.set(target.ref, new Set(output.split(/\r?\n/).map((r) => r.trim()).filter(Boolean)));
     });
     for (const branch of branches) {
-      const target = targets.find((t) => comparable(branch, t) && ancestors.get(t.ref)?.has(branch.name));
+      const tips = tipsOf(branch);
+      const target = targets.find((t) => comparable(branch, t) && tips.some((tip) => ancestors.get(t.ref)?.has(tip.ref)));
       if (target) {
         merged.add(branch.name);
         record(branch, target);
@@ -223,13 +236,15 @@ export async function loadSnapshot(git: Git, repo: RepoInfo, options: LoadOption
         branches.filter((b) => !merged.has(b.name)),
         8,
         async (branch) => {
-          // Other targets can only contain the changes if they moved after the branch's last commit.
-          const candidates = targets.filter((t) => comparable(branch, t) && (t.ref === base.ref || t.committerDate >= branch.committerDate));
-          for (const target of candidates) {
-            if (await isContentMergedInto(git, cwd, target, branch)) {
-              contentMerged.add(branch.name);
-              record(branch, target);
-              return;
+          for (const tip of tipsOf(branch)) {
+            // Other targets can only contain the changes if they moved after the tip's last commit.
+            const candidates = targets.filter((t) => comparable(branch, t) && (t.ref === base.ref || t.committerDate >= tip.committerDate));
+            for (const target of candidates) {
+              if (await isContentMergedInto(git, cwd, target, tip.sha)) {
+                contentMerged.add(branch.name);
+                record(branch, target);
+                return;
+              }
             }
           }
         },

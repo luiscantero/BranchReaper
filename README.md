@@ -42,7 +42,8 @@ or terminal that still used it, and only then deleting the branch.
      merges such as Azure DevOps' default),
   3. or, optionally, whose changes are already in one of those branches (empty tree diff, or a
      merge that would not change it). The status then says where, for example *merged (squash)
-     into release/1.5*.
+     into release/1.5*. A branch that is only behind its upstream (for example, the pull request
+     was updated from another clone) is also checked using the upstream's tip.
 
   All branches are checked (newest first), except those with a worktree that has uncommitted
   changes (it may belong to an agent session that is still running) and those whose upstream is

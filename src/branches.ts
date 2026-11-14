@@ -18,6 +18,8 @@ export interface BranchRef {
   upstream?: string;
   /** The upstream is configured but its remote-tracking ref no longer exists (`[gone]`). */
   upstreamGone: boolean;
+  /** The branch has commits that its upstream does not have. */
+  ahead?: boolean;
   /** Remote of the upstream, for example `origin`. */
   remote?: string;
   /** Branch on the remote, for example `refs/heads/feature/x`. */
@@ -39,6 +41,7 @@ export function parseBranches(output: string): BranchRef[] {
       sha,
       upstream: upstream || undefined,
       upstreamGone: track.trim() === "[gone]",
+      ahead: /\bahead\b/.test(track),
       remote: remote || undefined,
       remoteRef: remoteRef || undefined,
       committerDate: Number(date) || 0,
@@ -48,16 +51,16 @@ export function parseBranches(output: string): BranchRef[] {
   return result;
 }
 
-/** Branch names from `git branch --merged <base> --format=%(refname)`. */
-export function parseMergedBranches(output: string): Set<string> {
-  const names = new Set<string>();
-  for (const line of output.split(/\r?\n/)) {
-    const ref = line.trim();
-    if (ref.startsWith("refs/heads/")) {
-      names.add(ref.slice("refs/heads/".length));
-    }
+/**
+ * The upstream tip to check in addition to the branch's own tip, when the branch only lags behind
+ * a live upstream: every local commit is then in the upstream, and a pull request may have merged
+ * the upstream's newer commits (pushed from another clone or edited in the browser).
+ */
+export function upstreamToCheck(branch: Pick<BranchRef, "upstream" | "upstreamGone" | "ahead" | "sha">, upstreamSha: string | undefined): string | undefined {
+  if (!branch.upstream || branch.upstreamGone || branch.ahead || !upstreamSha || upstreamSha === branch.sha) {
+    return undefined;
   }
-  return names;
+  return upstreamSha;
 }
 
 /**

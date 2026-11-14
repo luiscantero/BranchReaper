@@ -1,5 +1,9 @@
 # Changelog
 
+## Unreleased
+
+- Branches that are behind their upstream are detected as merged when the pull request merged the upstream's newer commits.
+
 ## 0.2.2
 
 - Branches are sorted newest first (most recent last commit at the top).
