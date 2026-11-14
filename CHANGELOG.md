@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.2.4
+
+- `preview/**` is a default target branch, so pull requests into branches such as `preview/v1.6.x/2612` count as merged.
+
 ## 0.2.3
 
 - Branches that are behind their upstream are detected as merged when the pull request merged the upstream's newer commits.
