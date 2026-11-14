@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## 0.2.3
 
 - Branches that are behind their upstream are detected as merged when the pull request merged the upstream's newer commits.
 
